@@ -4,11 +4,13 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import com.example.github_trending_monitor.entity.TrendingRepo;
@@ -18,9 +20,10 @@ import com.example.github_trending_monitor.repository.TrendingRepository;
 public class TrendingService {
 
     private final TrendingRepository trendingRepository;
-
-    public TrendingService(TrendingRepository trendingRepository) {
+    private RedisTemplate<String, Object> redisTemplate;
+    public TrendingService(TrendingRepository trendingRepository, RedisTemplate<String, Object> redisTemplate) {
         this.trendingRepository = trendingRepository;
+        this.redisTemplate = redisTemplate;
     }
 
     // 爬 GitHub trending 頁面並存入 DB
@@ -79,10 +82,26 @@ public class TrendingService {
 
     // 查詢 DB 中已有的資料
     public List<TrendingRepo> getFromDb(String since, String language) {
-        if (language == null || language.isBlank()) {
-            return trendingRepository.findBySinceOrderByStarsTodayDesc(since);
+        // Use Redis cache first
+        String cacheKey = cacheKey(since, language);
+        
+        Object cached = redisTemplate.opsForValue().get(cacheKey);
+        if(cached != null){
+            return (List<TrendingRepo>) cached;
         }
-        return trendingRepository.findBySinceAndLanguageOrderByStarsTodayDesc(since, language);
+
+        // If not in cache, query from DB
+        List<TrendingRepo> repos;
+
+        if (language == null || language.isBlank()) {
+            repos = trendingRepository.findBySinceOrderByStarsTodayDesc(since);
+        }else{
+            repos = trendingRepository.findBySinceAndLanguageOrderByStarsTodayDesc(since, language);
+        }
+
+        // Cache the result in Redis for future requests
+        redisTemplate.opsForValue().set(cacheKey, repos, 30, TimeUnit.MINUTES);
+        return repos;
     }
 
     private String buildUrl(String since, String language) {
@@ -106,4 +125,11 @@ public class TrendingService {
         String digits = text.replaceAll("[^0-9]", "");
         return digits.isBlank() ? 0 : Integer.parseInt(digits);
     }
+
+    // cache key for redis
+    private String cacheKey(String since, String language){
+        String lang = (language == null) ? "" : language.toLowerCase();
+        return "trending:" + since + ":" + lang;
+        }
+
 }
