@@ -6,7 +6,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import com.example.github_trending_monitor.service.TrendingService;
-import com.nimbusds.jose.shaded.gson.internal.bind.TreeTypeAdapter;
 
 @Component
 public class TrendingScheduler {
@@ -20,7 +19,7 @@ public class TrendingScheduler {
     }
 
     // Run every 6 hours
-    @Scheduled(fixedDelay= 10000)
+    @Scheduled(fixedDelay= 6 * 60 * 60 * 1000)
     public void scrapeDaily(){
         try {
             logger.info("Starting scheduled trending repositories scrape...");

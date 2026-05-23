@@ -11,7 +11,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "user_favorties")
+@Table(name = "user_favorites")
 public class UserFavorite {
 
     @Id

@@ -13,7 +13,7 @@ public interface FavoriteRepository extends JpaRepository<UserFavorite, Long>{
     List<UserFavorite> findByUserIdOrderByCreatedAtDesc(Long userId);
 
     // find by user id and repo name
-    Optional<UserFavorite> findByUseridAndRepoName(Long userId, String repoName);
+    Optional<UserFavorite> findByUserIdAndRepoName(Long userId, String repoName);
 
     boolean existsByUserIdAndRepoName(Long userId, String repoName);
 

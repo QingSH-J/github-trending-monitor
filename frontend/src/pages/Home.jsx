@@ -3,29 +3,23 @@ import {
   App,
   Avatar,
   Button,
-  Card,
-  Col,
   Dropdown,
   Empty,
   Layout,
-  Row,
   Select,
   Skeleton,
   Space,
-  Statistic,
   Tag,
   Typography,
 } from 'antd'
 import {
   BranchesOutlined,
   ClockCircleOutlined,
-  DatabaseOutlined,
   FireOutlined,
   GithubOutlined,
-  LinkOutlined,
   LogoutOutlined,
   ReloadOutlined,
-  RiseOutlined,
+  StarFilled,
   StarOutlined,
 } from '@ant-design/icons'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -88,8 +82,12 @@ function Home() {
   const email = localStorage.getItem('email') || ''
   const [language, setLanguage] = useState('')
   const [range, setRange] = useState('daily')
+  const [activeView, setActiveView] = useState('trending')
   const [repositories, setRepositories] = useState([])
+  const [favoriteRepos, setFavoriteRepos] = useState(new Set())
+  const [pendingFavorites, setPendingFavorites] = useState(new Set())
   const [loading, setLoading] = useState(false)
+  const [favoritesLoading, setFavoritesLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
 
@@ -99,6 +97,27 @@ function Home() {
       language,
     }),
     [language, range],
+  )
+
+  const loadFavorites = useCallback(
+    async ({ signal } = {}) => {
+      setFavoritesLoading(true)
+
+      try {
+        const { data } = await api.get('/api/favorites', { signal })
+        const repoNames = Array.isArray(data) ? data.map((favorite) => favorite.repoName) : []
+        setFavoriteRepos(new Set(repoNames.filter(Boolean)))
+      } catch (err) {
+        if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
+          return
+        }
+
+        message.warning('Unable to load favorites')
+      } finally {
+        setFavoritesLoading(false)
+      }
+    },
+    [message],
   )
 
   const loadTrending = useCallback(
@@ -140,23 +159,17 @@ function Home() {
     const controller = new AbortController()
     const timer = window.setTimeout(() => {
       loadTrending({ signal: controller.signal })
+      loadFavorites({ signal: controller.signal })
     }, 0)
 
     return () => {
       window.clearTimeout(timer)
       controller.abort()
     }
-  }, [loadTrending])
+  }, [loadFavorites, loadTrending])
 
   const metrics = useMemo(() => {
     const totalStarsToday = repositories.reduce((sum, repo) => sum + (repo.starsToday || 0), 0)
-    const averageGrowth =
-      repositories.length === 0
-        ? 0
-        : repositories.reduce((sum, repo) => {
-            const previousStars = Math.max((repo.stars || 0) - (repo.starsToday || 0), 1)
-            return sum + ((repo.starsToday || 0) / previousStars) * 100
-          }, 0) / repositories.length
     const latestScrapedAt = repositories
       .map((repo) => repo.scrapedAt)
       .filter(Boolean)
@@ -164,12 +177,62 @@ function Home() {
       .at(-1)
 
     return {
-      averageGrowth,
       latestScrapedAt,
       totalStarsToday,
       trackedRepos: repositories.length,
     }
   }, [repositories])
+
+  const visibleRepos = useMemo(() => {
+    if (activeView === 'favorites') {
+      return repositories.filter((repo) => favoriteRepos.has(repo.repoName))
+    }
+
+    return repositories
+  }, [activeView, favoriteRepos, repositories])
+
+  const toggleFavorite = async (repoName) => {
+    const isFavorited = favoriteRepos.has(repoName)
+
+    setPendingFavorites((current) => new Set(current).add(repoName))
+    setFavoriteRepos((current) => {
+      const next = new Set(current)
+      if (isFavorited) {
+        next.delete(repoName)
+      } else {
+        next.add(repoName)
+      }
+      return next
+    })
+
+    try {
+      if (isFavorited) {
+        await api.delete('/api/favorites', { params: { repoName } })
+        message.success('Removed from favorites')
+      } else {
+        await api.post('/api/favorites', { repoName })
+        message.success('Added to favorites')
+      }
+    } catch (err) {
+      setFavoriteRepos((current) => {
+        const next = new Set(current)
+        if (isFavorited) {
+          next.add(repoName)
+        } else {
+          next.delete(repoName)
+        }
+        return next
+      })
+
+      message.error(err.response?.data?.error || 'Favorite update failed')
+    } finally {
+      setPendingFavorites((current) => {
+        const next = new Set(current)
+        next.delete(repoName)
+        return next
+      })
+    }
+  }
 
   const handleLogout = () => {
     localStorage.removeItem('token')
@@ -199,13 +262,13 @@ function Home() {
   ]
 
   return (
-    <Layout className="app-shell">
-      <Header className="topbar">
+    <Layout className="app-shell github-shell">
+      <Header className="topbar github-topbar">
         <div className="brand">
           <span className="brand-mark">
             <GithubOutlined />
           </span>
-          <span className="brand-name">Trending Monitor</span>
+          <span className="brand-name">Repo Radar</span>
         </div>
 
         <Space size="middle">
@@ -223,123 +286,143 @@ function Home() {
         </Space>
       </Header>
 
-      <Content className="dashboard">
-        <section className="dashboard-header">
-          <div>
-            <Tag color="processing" icon={<FireOutlined />}>
-              Live watchlist
-            </Tag>
-            <Title>GitHub Trending Dashboard</Title>
-            <Paragraph type="secondary">
-              Repositories gaining attention across languages, ranked by recent star velocity.
-            </Paragraph>
+      <Content className="github-main">
+        <section className="github-repo-header">
+          <div className="repo-title-line">
+            <GithubOutlined />
+            <Title level={1}>qingshiyuu / repo-radar</Title>
+            <Tag>Public</Tag>
           </div>
 
-          <div className="filters">
-            <Select value={language} options={languageOptions} onChange={setLanguage} />
-            <Select value={range} options={rangeOptions} onChange={setRange} />
-            <Button
-              icon={<ReloadOutlined />}
-              loading={refreshing}
-              onClick={() => loadTrending({ refresh: true })}
-            >
-              Refresh
-            </Button>
+          <Paragraph>
+            GitHub Trending repositories, cached by the backend scheduler and saved to your personal
+            favorites.
+          </Paragraph>
+        </section>
+
+        <nav className="github-tabs">
+          <button
+            className={activeView === 'trending' ? 'active' : ''}
+            type="button"
+            onClick={() => setActiveView('trending')}
+          >
+            <FireOutlined />
+            Trending
+            <span>{metrics.trackedRepos}</span>
+          </button>
+          <button
+            className={activeView === 'favorites' ? 'active' : ''}
+            type="button"
+            onClick={() => setActiveView('favorites')}
+          >
+            <StarFilled />
+            Favorites
+            <span>{favoriteRepos.size}</span>
+          </button>
+        </nav>
+
+        <section className="github-panel">
+          <div className="github-toolbar">
+            <div className="filters">
+              <Select value={language} options={languageOptions} onChange={setLanguage} />
+              <Select value={range} options={rangeOptions} onChange={setRange} />
+              <Button
+                icon={<ReloadOutlined />}
+                loading={refreshing}
+                onClick={() => loadTrending({ refresh: true })}
+              >
+                Refresh
+              </Button>
+            </div>
+
+            <div className="sync-bar">
+              <span>
+                <ClockCircleOutlined />
+                Last sync: {formatScrapedAt(metrics.latestScrapedAt)}
+              </span>
+              <span>{fullNumber(metrics.totalStarsToday)} stars gained</span>
+            </div>
           </div>
-        </section>
 
-        <Row gutter={[16, 16]} className="metric-row">
-          <Col xs={24} md={8}>
-            <Card>
-              <Statistic
-                title="Tracked repositories"
-                value={metrics.trackedRepos}
-                prefix={<GithubOutlined />}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} md={8}>
-            <Card>
-              <Statistic
-                title="Recent stars"
-                value={metrics.totalStarsToday}
-                prefix={<StarOutlined />}
-              />
-            </Card>
-          </Col>
-          <Col xs={24} md={8}>
-            <Card>
-              <Statistic
-                title="Average growth"
-                value={metrics.averageGrowth}
-                precision={1}
-                suffix="%"
-                prefix={<RiseOutlined />}
-              />
-            </Card>
-          </Col>
-        </Row>
+          {error && <Alert className="dashboard-alert" type="error" message={error} showIcon />}
 
-        <div className="sync-bar">
-          <span>
-            <DatabaseOutlined />
-            {language || 'All languages'}
-          </span>
-          <span>
-            <ClockCircleOutlined />
-            {range}
-          </span>
-          <span>Last sync: {formatScrapedAt(metrics.latestScrapedAt)}</span>
-        </div>
-
-        {error && <Alert className="dashboard-alert" type="error" message={error} showIcon />}
-
-        <section className="repo-grid">
-          {loading
-            ? Array.from({ length: 6 }).map((_, index) => (
-                <Card className="repo-card" key={`loading-${index}`}>
-                  <Skeleton active paragraph={{ rows: 4 }} title={{ width: '70%' }} />
-                </Card>
-              ))
-            : repositories.map((repo) => (
-                <Card className="repo-card" key={repo.id || repo.repoName}>
-                  <div className="repo-card-header">
-                    <span className={`language-dot ${languageToneMap[repo.language] || 'gray'}`} />
-                    <Tag>{repo.language || 'Unknown'}</Tag>
+          <div className="repo-list">
+            {loading
+              ? Array.from({ length: 6 }).map((_, index) => (
+                  <div className="repo-row" key={`loading-${index}`}>
+                    <Skeleton active paragraph={{ rows: 2 }} title={{ width: '55%' }} />
                   </div>
+                ))
+              : visibleRepos.map((repo) => {
+                  const isFavorited = favoriteRepos.has(repo.repoName)
+                  const isPending = pendingFavorites.has(repo.repoName)
 
-                  <Title level={4}>
-                    <a
-                      href={`https://github.com/${repo.repoName}`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {repo.repoName}
-                      <LinkOutlined />
-                    </a>
-                  </Title>
-                  <Paragraph type="secondary">
-                    {repo.description || 'No description provided.'}
-                  </Paragraph>
+                  return (
+                    <article className="repo-row" key={repo.id || repo.repoName}>
+                      <div className="repo-row-main">
+                        <div className="repo-name-line">
+                          <a
+                            href={`https://github.com/${repo.repoName}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {repo.repoName}
+                          </a>
+                          <Tag>Public</Tag>
+                        </div>
 
-                  <div className="repo-stats">
-                    <span>
-                      <StarOutlined />
-                      {compactNumber(repo.stars)}
-                    </span>
-                    <span>
-                      <BranchesOutlined />
-                      {compactNumber(repo.forks)}
-                    </span>
-                    <strong>+{fullNumber(repo.starsToday)}</strong>
-                  </div>
-                </Card>
-              ))}
+                        <Paragraph type="secondary">
+                          {repo.description || 'No description provided.'}
+                        </Paragraph>
+
+                        <div className="repo-meta">
+                          <span>
+                            <span
+                              className={`language-dot ${
+                                languageToneMap[repo.language] || 'gray'
+                              }`}
+                            />
+                            {repo.language || 'Unknown'}
+                          </span>
+                          <span>
+                            <StarOutlined />
+                            {compactNumber(repo.stars)}
+                          </span>
+                          <span>
+                            <BranchesOutlined />
+                            {compactNumber(repo.forks)}
+                          </span>
+                          <span className="stars-today">+{fullNumber(repo.starsToday)} today</span>
+                        </div>
+                      </div>
+
+                      <div className="repo-actions">
+                        <Button
+                          icon={isFavorited ? <StarFilled /> : <StarOutlined />}
+                          loading={isPending}
+                          onClick={() => toggleFavorite(repo.repoName)}
+                        >
+                          {isFavorited ? 'Starred' : 'Star'}
+                        </Button>
+                      </div>
+                    </article>
+                  )
+                })}
+          </div>
+
+          {!loading && !error && visibleRepos.length === 0 && (
+            <Empty
+              className="repo-empty"
+              description={
+                activeView === 'favorites'
+                  ? 'No favorites in the current trending set'
+                  : 'No trending repositories found'
+              }
+            />
+          )}
+
+          {favoritesLoading && <div className="favorites-loading">Syncing favorites...</div>}
         </section>
-
-        {!loading && !error && repositories.length === 0 && (
-          <Empty className="repo-empty" description="No trending repositories found" />
-        )}
       </Content>
     </Layout>
   )
