@@ -3,6 +3,7 @@ import {
   App,
   Avatar,
   Button,
+  Drawer,
   Dropdown,
   Empty,
   Layout,
@@ -13,6 +14,7 @@ import {
   Typography,
 } from 'antd'
 import {
+  BookOutlined,
   BranchesOutlined,
   ClockCircleOutlined,
   FireOutlined,
@@ -23,7 +25,9 @@ import {
   StarOutlined,
 } from '@ant-design/icons'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
 import { useNavigate } from 'react-router-dom'
+import remarkGfm from 'remark-gfm'
 import api from '../api/axios.js'
 
 const { Header, Content } = Layout
@@ -75,6 +79,41 @@ const formatScrapedAt = (value) => {
   }).format(new Date(value))
 }
 
+const getRepoParts = (repoName) => {
+  const [owner, repo] = (repoName || '').split('/')
+  return owner && repo ? { owner, repo } : null
+}
+
+const isAbsoluteUrl = (url) => /^[a-z][a-z\d+.-]*:/i.test(url) || url.startsWith('//')
+
+const resolveReadmeLink = (href = '', repoName = '') => {
+  if (!href || href.startsWith('#') || isAbsoluteUrl(href)) {
+    return href
+  }
+
+  const repoParts = getRepoParts(repoName)
+  if (!repoParts) {
+    return href
+  }
+
+  const path = href.startsWith('/') ? href.slice(1) : href
+  return `https://github.com/${repoParts.owner}/${repoParts.repo}/blob/HEAD/${path}`
+}
+
+const resolveReadmeImage = (src = '', repoName = '') => {
+  if (!src || isAbsoluteUrl(src)) {
+    return src
+  }
+
+  const repoParts = getRepoParts(repoName)
+  if (!repoParts) {
+    return src
+  }
+
+  const path = src.startsWith('/') ? src.slice(1) : src
+  return `https://raw.githubusercontent.com/${repoParts.owner}/${repoParts.repo}/HEAD/${path}`
+}
+
 function Home() {
   const navigate = useNavigate()
   const { message } = App.useApp()
@@ -89,6 +128,11 @@ function Home() {
   const [loading, setLoading] = useState(false)
   const [favoritesLoading, setFavoritesLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [readmeOpen, setReadmeOpen] = useState(false)
+  const [readmeRepo, setReadmeRepo] = useState('')
+  const [readmeText, setReadmeText] = useState('')
+  const [readmeLoading, setReadmeLoading] = useState(false)
+  const [readmeError, setReadmeError] = useState('')
   const [error, setError] = useState('')
 
   const requestParams = useMemo(
@@ -234,6 +278,33 @@ function Home() {
     }
   }
 
+  const openReadme = async (repoName) => {
+    const repoParts = getRepoParts(repoName)
+
+    if (!repoParts) {
+      message.error('Invalid repository name')
+      return
+    }
+
+    setReadmeRepo(repoName)
+    setReadmeText('')
+    setReadmeError('')
+    setReadmeOpen(true)
+    setReadmeLoading(true)
+
+    try {
+      const { owner, repo } = repoParts
+      const { data } = await api.get(
+        `/api/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/readme`,
+      )
+      setReadmeText(data?.readme || '')
+    } catch (err) {
+      setReadmeError(err.response?.data?.error || 'Unable to load README')
+    } finally {
+      setReadmeLoading(false)
+    }
+  }
+
   const handleLogout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('username')
@@ -344,7 +415,7 @@ function Home() {
             </div>
           </div>
 
-          {error && <Alert className="dashboard-alert" type="error" message={error} showIcon />}
+          {error && <Alert className="dashboard-alert" type="error" title={error} showIcon />}
 
           <div className="repo-list">
             {loading
@@ -397,6 +468,9 @@ function Home() {
                       </div>
 
                       <div className="repo-actions">
+                        <Button icon={<BookOutlined />} onClick={() => openReadme(repo.repoName)}>
+                          README
+                        </Button>
                         <Button
                           icon={isFavorited ? <StarFilled /> : <StarOutlined />}
                           loading={isPending}
@@ -424,6 +498,55 @@ function Home() {
           {favoritesLoading && <div className="favorites-loading">Syncing favorites...</div>}
         </section>
       </Content>
+
+      <Drawer
+        className="readme-drawer"
+        open={readmeOpen}
+        title={
+          <span className="readme-title">
+            <BookOutlined />
+            {readmeRepo}
+          </span>
+        }
+        size="large"
+        onClose={() => setReadmeOpen(false)}
+      >
+        {readmeLoading && <Skeleton active paragraph={{ rows: 12 }} title={{ width: '70%' }} />}
+
+        {!readmeLoading && readmeError && (
+          <Alert type="warning" title={readmeError} showIcon />
+        )}
+
+        {!readmeLoading && !readmeError && (
+          <article className="readme-markdown">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                a: ({ href, children, ...props }) => (
+                  <a
+                    {...props}
+                    href={resolveReadmeLink(href, readmeRepo)}
+                    target={href?.startsWith('#') ? undefined : '_blank'}
+                    rel={href?.startsWith('#') ? undefined : 'noreferrer'}
+                  >
+                    {children}
+                  </a>
+                ),
+                img: ({ src, alt, ...props }) => (
+                  <img
+                    {...props}
+                    src={resolveReadmeImage(src, readmeRepo)}
+                    alt={alt || ''}
+                    loading="lazy"
+                  />
+                ),
+              }}
+            >
+              {readmeText}
+            </ReactMarkdown>
+          </article>
+        )}
+      </Drawer>
     </Layout>
   )
 }

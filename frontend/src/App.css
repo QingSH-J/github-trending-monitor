@@ -379,6 +379,7 @@
 
 .repo-actions {
   display: flex;
+  gap: 8px;
   align-items: flex-start;
 }
 
@@ -411,6 +412,196 @@
   background: #f6f8fa;
   color: #57606a;
   font-size: 12px;
+}
+
+.readme-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: #24292f;
+}
+
+.readme-markdown {
+  color: #24292f;
+  font-size: 15px;
+  line-height: 1.6;
+  word-wrap: break-word;
+}
+
+.readme-markdown > :first-child {
+  margin-top: 0 !important;
+}
+
+.readme-markdown > :last-child {
+  margin-bottom: 0 !important;
+}
+
+.readme-markdown a {
+  color: #0969da;
+  text-decoration: none;
+}
+
+.readme-markdown a:hover {
+  text-decoration: underline;
+}
+
+.readme-markdown img {
+  max-width: 100%;
+  box-sizing: content-box;
+  background: #ffffff;
+}
+
+.readme-markdown hr {
+  height: 0.25em;
+  margin: 24px 0;
+  padding: 0;
+  border: 0;
+  background: #d8dee4;
+}
+
+.readme-markdown h1,
+.readme-markdown h2,
+.readme-markdown h3,
+.readme-markdown h4,
+.readme-markdown h5,
+.readme-markdown h6 {
+  margin: 24px 0 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.readme-markdown h1,
+.readme-markdown h2 {
+  padding-bottom: 8px;
+  border-bottom: 1px solid #d8dee4;
+}
+
+.readme-markdown h1:first-child,
+.readme-markdown h2:first-child {
+  margin-top: 0;
+}
+
+.readme-markdown h1 {
+  font-size: 28px;
+}
+
+.readme-markdown h2 {
+  font-size: 22px;
+}
+
+.readme-markdown h3 {
+  font-size: 18px;
+}
+
+.readme-markdown h4 {
+  font-size: 16px;
+}
+
+.readme-markdown h5 {
+  font-size: 14px;
+}
+
+.readme-markdown h6 {
+  color: #57606a;
+  font-size: 13px;
+}
+
+.readme-markdown p,
+.readme-markdown blockquote,
+.readme-markdown ul,
+.readme-markdown ol,
+.readme-markdown table,
+.readme-markdown pre {
+  margin: 0 0 16px;
+}
+
+.readme-markdown ul,
+.readme-markdown ol {
+  padding-left: 2em;
+}
+
+.readme-markdown li {
+  margin: 0.25em 0;
+}
+
+.readme-markdown li > p {
+  margin-top: 16px;
+}
+
+.readme-markdown li + li {
+  margin-top: 0.25em;
+}
+
+.readme-markdown .contains-task-list {
+  padding-left: 0;
+  list-style: none;
+}
+
+.readme-markdown .task-list-item {
+  list-style: none;
+}
+
+.readme-markdown .task-list-item input {
+  margin: 0 0.5em 0.25em 0;
+  vertical-align: middle;
+}
+
+.readme-markdown blockquote {
+  padding: 0 16px;
+  border-left: 4px solid #d0d7de;
+  color: #57606a;
+}
+
+.readme-markdown pre {
+  padding: 16px;
+  overflow: auto;
+  border-radius: 6px;
+  background: #f6f8fa;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.readme-markdown code {
+  padding: 0.2em 0.4em;
+  border-radius: 6px;
+  background: rgb(175 184 193 / 20%);
+  font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 85%;
+}
+
+.readme-markdown pre code {
+  padding: 0;
+  background: transparent;
+  font-size: 100%;
+}
+
+.readme-markdown table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow: auto;
+  border-spacing: 0;
+  border-collapse: collapse;
+}
+
+.readme-markdown table th,
+.readme-markdown table td {
+  padding: 6px 13px;
+  border: 1px solid #d0d7de;
+}
+
+.readme-markdown table th {
+  font-weight: 600;
+}
+
+.readme-markdown table tr {
+  border-top: 1px solid #d8dee4;
+  background: #ffffff;
+}
+
+.readme-markdown table tr:nth-child(2n) {
+  background: #f6f8fa;
 }
 
 @media (max-width: 760px) {
@@ -465,5 +656,9 @@
 
   .repo-actions .ant-btn {
     width: 100%;
+  }
+
+  .repo-actions {
+    display: grid;
   }
 }
