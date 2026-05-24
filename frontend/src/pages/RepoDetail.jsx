@@ -1,0 +1,378 @@
+import {
+  Alert,
+  Avatar,
+  Button,
+  Empty,
+  Layout,
+  Skeleton,
+  Space,
+  Tag,
+  Typography,
+} from 'antd'
+import {
+  ArrowLeftOutlined,
+  BookOutlined,
+  BranchesOutlined,
+  BulbOutlined,
+  GithubOutlined,
+  LogoutOutlined,
+  StarOutlined,
+} from '@ant-design/icons'
+import { useEffect, useMemo, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import rehypeRaw from 'rehype-raw'
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import remarkGfm from 'remark-gfm'
+import api from '../api/axios.js'
+import { API_BASE_URL } from '../api/axios.js'
+import { resolveReadmeImage, resolveReadmeLink } from '../utils/readmeLinks.js'
+
+const { Header, Content } = Layout
+const { Paragraph, Title } = Typography
+
+const compactNumber = (value) =>
+  new Intl.NumberFormat('en', {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(value || 0)
+
+const readmeSanitizeSchema = {
+  ...defaultSchema,
+  attributes: {
+    ...defaultSchema.attributes,
+    a: [...(defaultSchema.attributes?.a || []), 'target'],
+    div: [...(defaultSchema.attributes?.div || []), 'align'],
+    h1: [...(defaultSchema.attributes?.h1 || []), 'align'],
+    h2: [...(defaultSchema.attributes?.h2 || []), 'align'],
+    h3: [...(defaultSchema.attributes?.h3 || []), 'align'],
+    img: [
+      ...(defaultSchema.attributes?.img || []),
+      'align',
+      'height',
+      'loading',
+      'style',
+      'width',
+    ],
+    p: [...(defaultSchema.attributes?.p || []), 'align'],
+    span: [...(defaultSchema.attributes?.span || []), 'align'],
+  },
+}
+
+const markdownRehypePlugins = [rehypeRaw, [rehypeSanitize, readmeSanitizeSchema]]
+
+const booleanLabel = (value) => (value ? 'Yes' : 'No')
+
+const buildBriefMarkdown = (brief) => {
+  if (!brief) {
+    return ''
+  }
+
+  const productionReady = brief.goodForProduction ?? brief.productionReady
+  const lines = [
+    `### What it does`,
+    brief.what,
+    '',
+    `**Target audience:** ${brief.targetAudience || 'Not specified'}`,
+    '',
+    `**Tech stack:** ${brief.techStack || 'Not specified'}`,
+    '',
+    `**Highlights:** ${brief.highlights || 'Not specified'}`,
+    '',
+    `**Difficulty:** ${brief.difficulty || 'Unknown'}`,
+    '',
+    `**Good for learning:** ${booleanLabel(Boolean(brief.goodForLearning))}`,
+    '',
+    `**Production ready:** ${booleanLabel(Boolean(productionReady))}`,
+  ]
+
+  if (brief.risks) {
+    lines.push('', `**Risks:** ${brief.risks}`)
+  }
+
+  return lines.filter((line) => line !== undefined && line !== null).join('\n')
+}
+
+const createMarkdownComponents = (repoName) => ({
+  a: ({ href, children, ...props }) => (
+    <a
+      {...props}
+      href={resolveReadmeLink(href, repoName)}
+      target={href?.startsWith('#') ? undefined : '_blank'}
+      rel={href?.startsWith('#') ? undefined : 'noreferrer'}
+    >
+      {children}
+    </a>
+  ),
+  img: ({ src, alt, ...props }) => (
+    <img {...props} src={resolveReadmeImage(src, repoName)} alt={alt || ''} loading="lazy" />
+  ),
+})
+
+function RepoDetail() {
+  const { owner = '', repo = '' } = useParams()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const username = localStorage.getItem('username') || 'user'
+  const repoName = `${decodeURIComponent(owner)}/${decodeURIComponent(repo)}`
+  const repoMeta = location.state?.repo
+  const markdownComponents = useMemo(() => createMarkdownComponents(repoName), [repoName])
+
+  const [readme, setReadme] = useState('')
+  const [brief, setBrief] = useState(null)
+  const [briefMarkdown, setBriefMarkdown] = useState('')
+  const [streamingBrief, setStreamingBrief] = useState(false)
+  const [readmeLoading, setReadmeLoading] = useState(true)
+  const [briefLoading, setBriefLoading] = useState(true)
+  const [readmeError, setReadmeError] = useState('')
+  const [briefError, setBriefError] = useState('')
+
+  useEffect(() => {
+    const controller = new AbortController()
+    const encodedOwner = encodeURIComponent(decodeURIComponent(owner))
+    const encodedRepo = encodeURIComponent(decodeURIComponent(repo))
+
+    const loadReadme = async () => {
+      setReadmeLoading(true)
+      setReadme('')
+      setReadmeError('')
+
+      try {
+        const { data } = await api.get(`/api/repos/${encodedOwner}/${encodedRepo}/readme`, {
+          signal: controller.signal,
+        })
+        setReadme(data?.readme || '')
+      } catch (err) {
+        if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
+          return
+        }
+
+        setReadmeError(err.response?.data?.error || 'Unable to load README')
+      } finally {
+        setReadmeLoading(false)
+      }
+    }
+
+    const loadBrief = async () => {
+      setBriefLoading(true)
+      setStreamingBrief(false)
+      setBrief(null)
+      setBriefMarkdown('')
+      setBriefError('')
+
+      try {
+        const token = localStorage.getItem('token')
+        const response = await fetch(
+          `${API_BASE_URL}/api/repos/${encodedOwner}/${encodedRepo}/summary`,
+          {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            signal: controller.signal,
+          },
+        )
+
+        if (!response.ok) {
+          throw new Error('Brief request failed')
+        }
+
+        const data = await response.json()
+        const nextBrief = data?.brief || null
+        const nextMarkdown = buildBriefMarkdown(nextBrief)
+
+        setBrief(nextBrief)
+        setBriefLoading(false)
+        setStreamingBrief(true)
+
+        let index = 0
+        const streamNextChunk = () => {
+          if (controller.signal.aborted) {
+            return
+          }
+
+          index = Math.min(index + 8, nextMarkdown.length)
+          setBriefMarkdown(nextMarkdown.slice(0, index))
+
+          if (index < nextMarkdown.length) {
+            window.setTimeout(streamNextChunk, 18)
+          } else {
+            setStreamingBrief(false)
+          }
+        }
+
+        window.setTimeout(streamNextChunk, 80)
+      } catch (err) {
+        if (err.name === 'AbortError' || err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
+          return
+        }
+
+        setBriefError('AI brief is not available yet')
+        setBriefLoading(false)
+        setStreamingBrief(false)
+      }
+    }
+
+    loadReadme()
+    loadBrief()
+
+    return () => controller.abort()
+  }, [owner, repo])
+
+  const briefTags = useMemo(() => {
+    if (!brief) {
+      return []
+    }
+
+    const productionReady = brief.goodForProduction ?? brief.productionReady
+    return [
+      brief.difficulty && { label: brief.difficulty, tone: 'default' },
+      brief.goodForLearning && { label: 'Good for learning', tone: 'green' },
+      productionReady && { label: 'Production ready', tone: 'blue' },
+    ].filter(Boolean)
+  }, [brief])
+
+  const techStackTags = useMemo(() => {
+    if (!brief?.techStack) {
+      return []
+    }
+
+    return brief.techStack
+      .split(/[,，、]/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 8)
+  }, [brief])
+
+  const handleLogout = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('username')
+    localStorage.removeItem('email')
+    navigate('/login', { replace: true })
+  }
+
+  return (
+    <Layout className="app-shell github-shell">
+      <Header className="topbar github-topbar">
+        <button className="brand brand-button" type="button" onClick={() => navigate('/')}>
+          <span className="brand-mark">
+            <GithubOutlined />
+          </span>
+          <span className="brand-name">Repo Radar</span>
+        </button>
+
+        <Space size="middle">
+          <button className="user-trigger" type="button">
+            <Avatar size={28} className="user-avatar">
+              {username.slice(0, 1).toUpperCase()}
+            </Avatar>
+            <span>{username}</span>
+          </button>
+          <Button ghost icon={<LogoutOutlined />} onClick={handleLogout}>
+            Logout
+          </Button>
+        </Space>
+      </Header>
+
+      <Content className="github-main repo-detail-main">
+        <section className="github-repo-header repo-detail-header">
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/')}>
+            Back
+          </Button>
+
+          <div className="repo-title-line">
+            <GithubOutlined />
+            <Title level={1}>{repoName}</Title>
+            <Tag>Public</Tag>
+          </div>
+
+          <Paragraph>{repoMeta?.description || 'Repository details from GitHub.'}</Paragraph>
+
+          <div className="repo-meta repo-detail-meta">
+            <span>
+              <StarOutlined />
+              {compactNumber(repoMeta?.stars)} stars
+            </span>
+            <span>
+              <BranchesOutlined />
+              {compactNumber(repoMeta?.forks)} forks
+            </span>
+            <span>{repoMeta?.language || 'Unknown language'}</span>
+            <a href={`https://github.com/${repoName}`} target="_blank" rel="noreferrer">
+              View on GitHub
+            </a>
+          </div>
+        </section>
+
+        <section className="ai-summary-panel">
+          <div className="section-heading">
+            <BulbOutlined />
+            <Title level={2}>AI Brief</Title>
+            {streamingBrief && <span className="streaming-pill">Streaming</span>}
+          </div>
+
+          {briefLoading && <Skeleton active paragraph={{ rows: 3 }} title={{ width: '35%' }} />}
+
+          {!briefLoading && briefError && (
+            <Alert type="warning" title={briefError} showIcon />
+          )}
+
+          {!briefLoading && !briefError && brief && (
+            <div className="brief-content">
+              <div className="brief-tags">
+                {briefTags.map((tag) => (
+                  <Tag
+                    color={tag.tone === 'green' ? 'success' : tag.tone === 'blue' ? 'blue' : undefined}
+                    key={tag.label}
+                  >
+                    {tag.label}
+                  </Tag>
+                ))}
+                {techStackTags.map((tag) => (
+                  <Tag key={tag}>{tag}</Tag>
+                ))}
+              </div>
+
+              <article className="summary-markdown streaming-markdown">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={markdownRehypePlugins}
+                  components={markdownComponents}
+                >
+                  {briefMarkdown}
+                </ReactMarkdown>
+                {streamingBrief && <span className="typing-cursor" />}
+              </article>
+            </div>
+          )}
+        </section>
+
+        <section className="readme-panel">
+          <div className="section-heading">
+            <BookOutlined />
+            <Title level={2}>README</Title>
+          </div>
+
+          {readmeLoading && <Skeleton active paragraph={{ rows: 12 }} title={{ width: '45%' }} />}
+
+          {!readmeLoading && readmeError && <Alert type="error" title={readmeError} showIcon />}
+
+          {!readmeLoading && !readmeError && !readme && (
+            <Empty description="README not found" />
+          )}
+
+          {!readmeLoading && !readmeError && readme && (
+            <article className="readme-markdown">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={markdownRehypePlugins}
+                components={markdownComponents}
+              >
+                {readme}
+              </ReactMarkdown>
+            </article>
+          )}
+        </section>
+      </Content>
+    </Layout>
+  )
+}
+
+export default RepoDetail
