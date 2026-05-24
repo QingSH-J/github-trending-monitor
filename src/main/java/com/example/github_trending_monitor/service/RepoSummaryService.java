@@ -17,12 +17,12 @@ public class RepoSummaryService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final OpenAIClient openAIClient;
 
-    public RepoSummaryService(GitHubService gitHubService, RedisTemplate<String, Object> redisTemplate, @Value("${app.deepseek.api-key") String deepSeekApi) {
+    public RepoSummaryService(GitHubService gitHubService, RedisTemplate<String, Object> redisTemplate, @Value("${app.deepseek.api-key}") String deepSeekApi) {
         this.gitHubService = gitHubService;
         this.redisTemplate = redisTemplate;
         this.openAIClient = OpenAIOkHttpClient.builder()
             .apiKey(deepSeekApi)
-            .baseUrl("https://api.deepseek.com/")
+            .baseUrl("https://api.deepseek.com")
             .build();
     }
 

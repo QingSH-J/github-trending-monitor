@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-route
 import Home from './pages/Home.jsx'
 import Login from './pages/Login.jsx'
 import OAuthCallback from './pages/OAuthCallback.jsx'
+import RepoDetail from './pages/RepoDetail.jsx'
 import Register from './pages/Register.jsx'
 import './App.css'
 
@@ -49,6 +50,14 @@ function App() {
               element={
                 <RequireAuth>
                   <Home />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/repos/:owner/:repo"
+              element={
+                <RequireAuth>
+                  <RepoDetail />
                 </RequireAuth>
               }
             />

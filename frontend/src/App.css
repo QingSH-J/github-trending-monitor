@@ -97,6 +97,14 @@
   min-width: 0;
 }
 
+.brand-button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
 .brand-mark {
   width: 32px;
   height: 32px;
@@ -414,6 +422,89 @@
   font-size: 12px;
 }
 
+.repo-detail-main {
+  display: grid;
+  gap: 16px;
+}
+
+.repo-detail-header {
+  display: grid;
+  gap: 12px;
+}
+
+.repo-detail-header > .ant-btn {
+  width: fit-content;
+}
+
+.repo-detail-meta {
+  margin-left: 26px;
+}
+
+.repo-detail-meta a {
+  color: #0969da;
+  text-decoration: none;
+}
+
+.repo-detail-meta a:hover {
+  text-decoration: underline;
+}
+
+.ai-summary-panel,
+.readme-panel {
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.ai-summary-panel {
+  padding: 16px;
+}
+
+.readme-panel {
+  overflow: hidden;
+}
+
+.section-heading {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #24292f;
+}
+
+.readme-panel .section-heading {
+  padding: 0 16px;
+  border-bottom: 1px solid #d0d7de;
+  background: #f6f8fa;
+}
+
+.section-heading h2.ant-typography {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.summary-markdown {
+  color: #24292f;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.summary-markdown p,
+.summary-markdown ul,
+.summary-markdown ol {
+  margin: 0 0 12px;
+}
+
+.summary-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.summary-markdown ul,
+.summary-markdown ol {
+  padding-left: 1.5em;
+}
+
 .readme-title {
   display: inline-flex;
   align-items: center;
@@ -423,6 +514,7 @@
 }
 
 .readme-markdown {
+  padding: 24px;
   color: #24292f;
   font-size: 15px;
   line-height: 1.6;
@@ -450,6 +542,30 @@
   max-width: 100%;
   box-sizing: content-box;
   background: #ffffff;
+}
+
+.readme-markdown p[align="center"],
+.readme-markdown div[align="center"],
+.readme-markdown h1[align="center"],
+.readme-markdown h2[align="center"],
+.readme-markdown h3[align="center"] {
+  text-align: center;
+}
+
+.readme-markdown p[align="right"],
+.readme-markdown div[align="right"] {
+  text-align: right;
+}
+
+.readme-markdown p[align="center"] img,
+.readme-markdown div[align="center"] img {
+  display: inline-block;
+  margin: 2px 4px;
+  vertical-align: middle;
+}
+
+.readme-markdown h1[align="center"] {
+  border-bottom: 0;
 }
 
 .readme-markdown hr {
@@ -660,5 +776,13 @@
 
   .repo-actions {
     display: grid;
+  }
+
+  .repo-detail-meta {
+    margin-left: 0;
+  }
+
+  .readme-markdown {
+    padding: 16px;
   }
 }
