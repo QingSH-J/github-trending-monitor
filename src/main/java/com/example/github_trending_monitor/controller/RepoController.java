@@ -11,6 +11,10 @@ import com.example.github_trending_monitor.service.GitHubService;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
+
+import com.example.github_trending_monitor.service.RepoSummaryService;
+
 
 
 
@@ -19,9 +23,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 public class RepoController {
     
     private final GitHubService gitHubService;
+    private final RepoSummaryService repoSummaryService;
 
-    public RepoController(GitHubService gitHubService) {
+    public RepoController(GitHubService gitHubService, RepoSummaryService repoSummaryService) {
         this.gitHubService = gitHubService;
+        this.repoSummaryService = repoSummaryService;
     }
 
     //GET
@@ -36,5 +42,18 @@ public class RepoController {
 
         return ResponseEntity.ok(Map.of("readme", markdown));
     }
+
+    @GetMapping("/{owner}/{repo}/summary")
+    public ResponseEntity<?> getSummary(@PathVariable String owner, @PathVariable String repo) {
+        String summary = repoSummaryService.getSummary(owner, repo);
+
+        if(summary == null){
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+            .body(Map.of("error", "Summary not available"));
+        }
+
+        return ResponseEntity.ok(Map.of("summary", summary));
+    }
+    
     
 }
