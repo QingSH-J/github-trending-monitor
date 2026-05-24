@@ -9,11 +9,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.github_trending_monitor.service.GitHubService;
 
-import jakarta.websocket.server.PathParam;
-
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
 
 
 
@@ -30,7 +27,7 @@ public class RepoController {
     //GET
     @GetMapping("/{owner}/{repo}/readme")
     public ResponseEntity<?> getReadme(@PathVariable String owner, @PathVariable String repo) {
-        String markdown = gitHubService.fetchReadme(owner, owner);
+        String markdown = gitHubService.fetchReadme(owner, repo);
 
         if(markdown == null){
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
