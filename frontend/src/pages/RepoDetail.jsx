@@ -25,6 +25,7 @@ import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import remarkGfm from 'remark-gfm'
 import api from '../api/axios.js'
+import { API_BASE_URL } from '../api/axios.js'
 import { resolveReadmeImage, resolveReadmeLink } from '../utils/readmeLinks.js'
 
 const { Header, Content } = Layout
@@ -60,6 +61,38 @@ const readmeSanitizeSchema = {
 
 const markdownRehypePlugins = [rehypeRaw, [rehypeSanitize, readmeSanitizeSchema]]
 
+const booleanLabel = (value) => (value ? 'Yes' : 'No')
+
+const buildBriefMarkdown = (brief) => {
+  if (!brief) {
+    return ''
+  }
+
+  const productionReady = brief.goodForProduction ?? brief.productionReady
+  const lines = [
+    `### What it does`,
+    brief.what,
+    '',
+    `**Target audience:** ${brief.targetAudience || 'Not specified'}`,
+    '',
+    `**Tech stack:** ${brief.techStack || 'Not specified'}`,
+    '',
+    `**Highlights:** ${brief.highlights || 'Not specified'}`,
+    '',
+    `**Difficulty:** ${brief.difficulty || 'Unknown'}`,
+    '',
+    `**Good for learning:** ${booleanLabel(Boolean(brief.goodForLearning))}`,
+    '',
+    `**Production ready:** ${booleanLabel(Boolean(productionReady))}`,
+  ]
+
+  if (brief.risks) {
+    lines.push('', `**Risks:** ${brief.risks}`)
+  }
+
+  return lines.filter((line) => line !== undefined && line !== null).join('\n')
+}
+
 const createMarkdownComponents = (repoName) => ({
   a: ({ href, children, ...props }) => (
     <a
@@ -86,11 +119,13 @@ function RepoDetail() {
   const markdownComponents = useMemo(() => createMarkdownComponents(repoName), [repoName])
 
   const [readme, setReadme] = useState('')
-  const [summary, setSummary] = useState('')
+  const [brief, setBrief] = useState(null)
+  const [briefMarkdown, setBriefMarkdown] = useState('')
+  const [streamingBrief, setStreamingBrief] = useState(false)
   const [readmeLoading, setReadmeLoading] = useState(true)
-  const [summaryLoading, setSummaryLoading] = useState(true)
+  const [briefLoading, setBriefLoading] = useState(true)
   const [readmeError, setReadmeError] = useState('')
-  const [summaryError, setSummaryError] = useState('')
+  const [briefError, setBriefError] = useState('')
 
   useEffect(() => {
     const controller = new AbortController()
@@ -118,32 +153,93 @@ function RepoDetail() {
       }
     }
 
-    const loadSummary = async () => {
-      setSummaryLoading(true)
-      setSummary('')
-      setSummaryError('')
+    const loadBrief = async () => {
+      setBriefLoading(true)
+      setStreamingBrief(false)
+      setBrief(null)
+      setBriefMarkdown('')
+      setBriefError('')
 
       try {
-        const { data } = await api.get(`/api/repos/${encodedOwner}/${encodedRepo}/summary`, {
-          signal: controller.signal,
-        })
-        setSummary(data?.summary || '')
+        const token = localStorage.getItem('token')
+        const response = await fetch(
+          `${API_BASE_URL}/api/repos/${encodedOwner}/${encodedRepo}/summary`,
+          {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            signal: controller.signal,
+          },
+        )
+
+        if (!response.ok) {
+          throw new Error('Brief request failed')
+        }
+
+        const data = await response.json()
+        const nextBrief = data?.brief || null
+        const nextMarkdown = buildBriefMarkdown(nextBrief)
+
+        setBrief(nextBrief)
+        setBriefLoading(false)
+        setStreamingBrief(true)
+
+        let index = 0
+        const streamNextChunk = () => {
+          if (controller.signal.aborted) {
+            return
+          }
+
+          index = Math.min(index + 8, nextMarkdown.length)
+          setBriefMarkdown(nextMarkdown.slice(0, index))
+
+          if (index < nextMarkdown.length) {
+            window.setTimeout(streamNextChunk, 18)
+          } else {
+            setStreamingBrief(false)
+          }
+        }
+
+        window.setTimeout(streamNextChunk, 80)
       } catch (err) {
-        if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
+        if (err.name === 'AbortError' || err.name === 'CanceledError' || err.code === 'ERR_CANCELED') {
           return
         }
 
-        setSummaryError('AI summary is not available yet')
-      } finally {
-        setSummaryLoading(false)
+        setBriefError('AI brief is not available yet')
+        setBriefLoading(false)
+        setStreamingBrief(false)
       }
     }
 
     loadReadme()
-    loadSummary()
+    loadBrief()
 
     return () => controller.abort()
   }, [owner, repo])
+
+  const briefTags = useMemo(() => {
+    if (!brief) {
+      return []
+    }
+
+    const productionReady = brief.goodForProduction ?? brief.productionReady
+    return [
+      brief.difficulty && { label: brief.difficulty, tone: 'default' },
+      brief.goodForLearning && { label: 'Good for learning', tone: 'green' },
+      productionReady && { label: 'Production ready', tone: 'blue' },
+    ].filter(Boolean)
+  }, [brief])
+
+  const techStackTags = useMemo(() => {
+    if (!brief?.techStack) {
+      return []
+    }
+
+    return brief.techStack
+      .split(/[,，、]/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 8)
+  }, [brief])
 
   const handleLogout = () => {
     localStorage.removeItem('token')
@@ -208,25 +304,43 @@ function RepoDetail() {
         <section className="ai-summary-panel">
           <div className="section-heading">
             <BulbOutlined />
-            <Title level={2}>AI Summary</Title>
+            <Title level={2}>AI Brief</Title>
+            {streamingBrief && <span className="streaming-pill">Streaming</span>}
           </div>
 
-          {summaryLoading && <Skeleton active paragraph={{ rows: 3 }} title={{ width: '35%' }} />}
+          {briefLoading && <Skeleton active paragraph={{ rows: 3 }} title={{ width: '35%' }} />}
 
-          {!summaryLoading && summaryError && (
-            <Alert type="warning" title={summaryError} showIcon />
+          {!briefLoading && briefError && (
+            <Alert type="warning" title={briefError} showIcon />
           )}
 
-          {!summaryLoading && !summaryError && summary && (
-            <article className="summary-markdown">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                rehypePlugins={markdownRehypePlugins}
-                components={markdownComponents}
-              >
-                {summary}
-              </ReactMarkdown>
-            </article>
+          {!briefLoading && !briefError && brief && (
+            <div className="brief-content">
+              <div className="brief-tags">
+                {briefTags.map((tag) => (
+                  <Tag
+                    color={tag.tone === 'green' ? 'success' : tag.tone === 'blue' ? 'blue' : undefined}
+                    key={tag.label}
+                  >
+                    {tag.label}
+                  </Tag>
+                ))}
+                {techStackTags.map((tag) => (
+                  <Tag key={tag}>{tag}</Tag>
+                ))}
+              </div>
+
+              <article className="summary-markdown streaming-markdown">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={markdownRehypePlugins}
+                  components={markdownComponents}
+                >
+                  {briefMarkdown}
+                </ReactMarkdown>
+                {streamingBrief && <span className="typing-cursor" />}
+              </article>
+            </div>
           )}
         </section>
 

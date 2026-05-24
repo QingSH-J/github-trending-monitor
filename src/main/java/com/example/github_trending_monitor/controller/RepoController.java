@@ -4,15 +4,13 @@ import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.github_trending_monitor.dto.RepoBrief;
 import com.example.github_trending_monitor.service.GitHubService;
-
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
-
 import com.example.github_trending_monitor.service.RepoSummaryService;
 
 
@@ -45,14 +43,14 @@ public class RepoController {
 
     @GetMapping("/{owner}/{repo}/summary")
     public ResponseEntity<?> getSummary(@PathVariable String owner, @PathVariable String repo) {
-        String summary = repoSummaryService.getSummary(owner, repo);
+        RepoBrief brief = repoSummaryService.getBrief(owner, repo);
 
-        if(summary == null){
+        if(brief == null){
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
             .body(Map.of("error", "Summary not available"));
         }
-
-        return ResponseEntity.ok(Map.of("summary", summary));
+        
+        return ResponseEntity.ok(Map.of("brief", brief));
     }
     
     

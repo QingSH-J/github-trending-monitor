@@ -484,6 +484,30 @@
   font-weight: 600;
 }
 
+.streaming-pill {
+  height: 22px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #0969da;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.brief-content {
+  display: grid;
+  gap: 12px;
+}
+
+.brief-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .summary-markdown {
   color: #24292f;
   font-size: 15px;
@@ -503,6 +527,43 @@
 .summary-markdown ul,
 .summary-markdown ol {
   padding-left: 1.5em;
+}
+
+.summary-markdown h3 {
+  margin: 0 0 10px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.streaming-markdown {
+  min-height: 150px;
+  padding: 14px 16px;
+  border: 1px solid #d8dee4;
+  border-radius: 6px;
+  background: #f6f8fa;
+}
+
+.typing-cursor {
+  width: 8px;
+  height: 1.2em;
+  display: inline-block;
+  margin-left: 2px;
+  border-radius: 1px;
+  background: #0969da;
+  vertical-align: text-bottom;
+  animation: cursor-blink 1s steps(2, start) infinite;
+}
+
+@keyframes cursor-blink {
+  0%,
+  45% {
+    opacity: 1;
+  }
+
+  46%,
+  100% {
+    opacity: 0;
+  }
 }
 
 .readme-title {
