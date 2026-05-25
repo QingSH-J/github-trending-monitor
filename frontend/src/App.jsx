@@ -5,6 +5,7 @@ import Login from './pages/Login.jsx'
 import OAuthCallback from './pages/OAuthCallback.jsx'
 import RepoDetail from './pages/RepoDetail.jsx'
 import Register from './pages/Register.jsx'
+import SubscriptionSettings from './pages/SubscriptionSettings.jsx'
 import './App.css'
 
 function RequireAuth({ children }) {
@@ -58,6 +59,14 @@ function App() {
               element={
                 <RequireAuth>
                   <RepoDetail />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/settings/subscriptions"
+              element={
+                <RequireAuth>
+                  <SubscriptionSettings />
                 </RequireAuth>
               }
             />
