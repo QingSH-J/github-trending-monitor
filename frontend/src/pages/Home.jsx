@@ -20,6 +20,7 @@ import {
   GithubOutlined,
   LogoutOutlined,
   ReloadOutlined,
+  SettingOutlined,
   StarFilled,
   StarOutlined,
 } from '@ant-design/icons'
@@ -269,6 +270,13 @@ function Home() {
     },
     { type: 'divider' },
     {
+      key: 'settings',
+      label: 'Settings',
+      icon: <SettingOutlined />,
+      onClick: () => navigate('/settings/subscriptions'),
+    },
+    { type: 'divider' },
+    {
       key: 'logout',
       label: 'Sign out',
       icon: <LogoutOutlined />,
@@ -287,6 +295,9 @@ function Home() {
         </div>
 
         <Space size="middle">
+          <Button ghost icon={<SettingOutlined />} onClick={() => navigate('/settings/subscriptions')}>
+            Settings
+          </Button>
           <Dropdown menu={{ items: menuItems }} placement="bottomRight" trigger={['click']}>
             <button className="user-trigger" type="button">
               <Avatar size={28} className="user-avatar">
