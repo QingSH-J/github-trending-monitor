@@ -6,6 +6,7 @@ import OAuthCallback from './pages/OAuthCallback.jsx'
 import RepoDetail from './pages/RepoDetail.jsx'
 import Register from './pages/Register.jsx'
 import SubscriptionSettings from './pages/SubscriptionSettings.jsx'
+import Unsubscribe from './pages/Unsubscribe.jsx'
 import './App.css'
 
 function RequireAuth({ children }) {
@@ -46,6 +47,8 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/oauth/callback" element={<OAuthCallback />} />
+            <Route path="/unsubscribe" element={<Unsubscribe />} />
+            <Route path="/unsubscribe/:token" element={<Unsubscribe />} />
             <Route
               path="/"
               element={

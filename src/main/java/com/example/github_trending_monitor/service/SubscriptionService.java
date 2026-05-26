@@ -48,4 +48,18 @@ public class SubscriptionService {
         }
         return emailSubscriptionRepository.save(subscription);
     }
+
+    @Transactional
+    public boolean disableByToken(String token){
+        return emailSubscriptionRepository.findByUnsubscribeToken(token)
+            .map(sub -> {
+                sub.setEnabled(false);
+                emailSubscriptionRepository.save(sub);
+                return true;
+            })
+            .orElse(false);
+    }
+
+
+
 }
