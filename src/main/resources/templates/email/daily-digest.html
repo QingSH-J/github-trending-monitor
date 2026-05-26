@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Today's GitHub Trending</title>
+</head>
+<body style="margin:0;padding:0;background:#f6f8fa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f6f8fa;padding:24px 0;">
+  <tr>
+    <td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #d0d7de;border-radius:6px;overflow:hidden;">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:#0969da;padding:24px 32px;">
+            <p style="margin:0;font-size:20px;font-weight:600;color:#ffffff;">Repo Radar</p>
+            <p style="margin:4px 0 0;font-size:13px;color:#cae8ff;" th:text="'今日 GitHub Trending · ' + ${date}">今日精選</p>
+          </td>
+        </tr>
+
+        <!-- Repo list -->
+        <tr>
+          <td style="padding:24px 32px;">
+            <table width="100%" cellpadding="0" cellspacing="0" th:each="repo,iterStat : ${repos}">
+              <tr>
+                <td style="padding:16px 0;border-bottom:1px solid #d0d7de;">
+                  <table width="100%" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td style="width:28px;vertical-align:top;">
+                        <span style="display:inline-block;width:22px;height:22px;background:#0969da;border-radius:50%;color:#fff;font-size:11px;font-weight:600;text-align:center;line-height:22px;"
+                              th:text="${iterStat.index + 1}">1</span>
+                      </td>
+                      <td style="vertical-align:top;">
+                        <a th:href="${repo.url}" th:text="${repo.repoName}"
+                           style="font-size:16px;font-weight:600;color:#0969da;text-decoration:none;">owner/repo</a>
+
+                        <p th:if="${repo.description != null and !repo.description.isEmpty()}"
+                           th:text="${repo.description}"
+                           style="margin:4px 0 8px;font-size:13px;color:#656d76;line-height:1.5;">description</p>
+
+                        <p th:if="${repo.briefWhat != null}"
+                           th:text="${repo.briefWhat}"
+                           style="margin:0 0 8px;font-size:13px;color:#24292f;line-height:1.5;">brief</p>
+
+                        <table cellpadding="0" cellspacing="0">
+                          <tr>
+                            <td th:if="${repo.language != null}" style="padding-right:16px;">
+                              <span style="font-size:12px;color:#656d76;">● <span th:text="${repo.language}">Lang</span></span>
+                            </td>
+                            <td style="padding-right:16px;">
+                              <span style="font-size:12px;color:#656d76;">★ <span th:text="${repo.stars}">0</span></span>
+                            </td>
+                            <td>
+                              <span style="font-size:12px;color:#1a7f37;font-weight:600;">+<span th:text="${repo.starsToday}">0</span> today</span>
+                            </td>
+                          </tr>
+                        </table>
+
+                        <p th:if="${repo.briefTechStack != null}"
+                           style="margin:8px 0 0;font-size:12px;color:#656d76;">
+                          Tech: <span th:text="${repo.briefTechStack}">stack</span>
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding:20px 32px;background:#f6f8fa;border-top:1px solid #d0d7de;text-align:center;">
+            <p style="margin:0;font-size:12px;color:#656d76;">
+              你正在接收 Repo Radar 每日 Trending 摘要。
+              <a th:href="${unsubscribeUrl}" style="color:#0969da;">取消訂閱</a>
+            </p>
+            <p style="margin:6px 0 0;font-size:12px;color:#656d76;">
+              <a href="https://radar.qingshiyuu.com" style="color:#0969da;">radar.qingshiyuu.com</a>
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>
