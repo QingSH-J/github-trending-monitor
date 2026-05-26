@@ -32,7 +32,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/api/auth/**", "/api/trending/**", "/oauth2/**", "/login/oauth2/**", "/error", "/api/repos/**").permitAll()
+                .requestMatchers("/api/auth/**", "/api/trending/**", "/oauth2/**", "/login/oauth2/**", "/error", "/api/repos/**", "/api/unsubscribe/**").permitAll()
                 .anyRequest().authenticated()
             )
             //add the JWT filter before the default authentication filter

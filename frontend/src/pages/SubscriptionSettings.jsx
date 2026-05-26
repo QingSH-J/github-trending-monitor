@@ -100,6 +100,27 @@ function SubscriptionSettings() {
     }
   }
 
+  const disableSubscription = async () => {
+    setSaving(true)
+
+    try {
+      const { data } = await api.put('/api/subscriptions', {
+        enabled: false,
+        dailyCount: formState.dailyCount,
+      })
+      setSubscription(data)
+      setFormState({
+        enabled: Boolean(data.enabled),
+        dailyCount: data.dailyCount || 5,
+      })
+      message.success('Daily digest unsubscribed')
+    } catch (error) {
+      message.error(error.response?.data?.error || 'Unable to unsubscribe')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <Layout className="app-shell github-shell">
       <Header className="topbar github-topbar">
@@ -178,20 +199,28 @@ function SubscriptionSettings() {
                 <div className="setting-row">
                   <div>
                     <Text strong>Repositories per email</Text>
-                    <Paragraph type="secondary">Choose how many repositories appear in each digest.</Paragraph>
+                    <Paragraph type="secondary">Choose 3 to 15 repositories for each digest.</Paragraph>
                   </div>
                   <InputNumber
-                    min={1}
-                    max={10}
+                    min={3}
+                    max={15}
                     value={formState.dailyCount}
                     onChange={(dailyCount) =>
-                      setFormState((current) => ({ ...current, dailyCount: dailyCount || 1 }))
+                      setFormState((current) => ({ ...current, dailyCount: dailyCount || 3 }))
                     }
                   />
                 </div>
 
                 <div className="settings-actions">
                   <Button onClick={() => navigate('/')}>Cancel</Button>
+                  <Button
+                    danger
+                    disabled={!formState.enabled}
+                    loading={saving}
+                    onClick={disableSubscription}
+                  >
+                    Unsubscribe
+                  </Button>
                   <Button
                     type="primary"
                     icon={<SaveOutlined />}
